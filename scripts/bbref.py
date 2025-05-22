@@ -3,24 +3,13 @@ import pandas as pd
 import numpy as np
 import requests
 from bs4 import BeautifulSoup
-
 import random
 import ast
 import time
-
-
-#set some options to view tables better
-pd.set_option('display.max_colwidth',5000)
-pd.options.display.max_columns = None
-pd.set_option('display.max_rows', 1000)
-
 import pyarrow as pa
 import pyarrow.parquet as pq
-
 from datetime import date, timedelta
 from io import StringIO
-
-
 
 
 def get_season(season):
@@ -171,14 +160,6 @@ def get_box_score(game_id, visiting_team, home_team):
   ## add in the visiting team name
   df['team'] = visiting_team
 
-  ### This was the old version -- not totally sure why the try existed
-  # try:
-  #   df=pd.concat([df,pd.merge(d[0],d[int((len(d)/2)-1)])],sort=False)
-  #   print('first try failed')
-  # except:
-  #   df=pd.merge(d[0],d[int((len(d)/2)-1)])
-
-  ## adding data for the home team
   df = pd.concat([df,pd.merge(d[int((len(d)/2))],d[int((len(d))-1)])],sort=False)
   df.loc[df.team.isnull(), 'team'] = home_team
 
@@ -225,12 +206,13 @@ def get_proxy():
 
 
 
+nba_games_path = 'data/nba_games.parquet'
+nba_box_scores_path = 'data/nba_box_scores.parquet'
+
+
 ## Load Data
-d1=pd.read_parquet('/content/drive/MyDrive/Analytics/nba_games.parquet', engine='pyarrow')
-## previous version, before merging w/ the other scraped data
-# d2=pd.read_parquet('/content/drive/MyDrive/Analytics/nba_box_scores.parquet', engine='pyarrow')
-## updated version w/ data from the other scraped data
-d2=pd.read_parquet('/content/drive/MyDrive/Analytics/data_nba_games_20230422.parquet',engine='pyarrow')
+d1=pd.read_parquet(nba_games_path, engine='pyarrow')
+d2=pd.read_parquet(nba_box_scores_path,engine='pyarrow')
 try:
   del d2['unnamed: 16_level_1']
 except Exception as e:
@@ -247,7 +229,7 @@ d1 = d1.drop_duplicates()
 
 table = pa.Table.from_pandas(d1)
 # Parquet with Brotli compression
-pq.write_table(table, '/content/drive/MyDrive/Analytics/nba_games.parquet',compression='BROTLI')
+pq.write_table(table, nba_games_path,compression='BROTLI')
 
 box_scores = pd.DataFrame()
 print(d2.index.size)
@@ -270,6 +252,6 @@ d2[num_cols] = d2[num_cols].apply(pd.to_numeric, errors='coerce')
 print(d2.index.size)
 
 table = pa.Table.from_pandas(d2)
-pq.write_table(table, '/content/drive/MyDrive/Analytics/data_nba_games_20230422.parquet',compression='BROTLI')
+pq.write_table(table, nba_box_scores_path,compression='BROTLI')
 
 
