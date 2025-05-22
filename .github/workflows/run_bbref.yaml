@@ -29,7 +29,7 @@ jobs:
           pip install -r requirements.txt --default-timeout=100
         
       - name: Execute Python script # Run the run.py to get the latest data
-        run: python scripts/action_network.py
+        run: python scripts/bbref.py
 
       - name: List files before push
         run: |
