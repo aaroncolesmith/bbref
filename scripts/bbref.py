@@ -220,7 +220,7 @@ except Exception as e:
 
 
 
-df=get_season(2025)
+df=get_season(2026)
 
 d1=pd.concat([d1,df]).reset_index(drop=True)
 d1['visitor_score'] = pd.to_numeric(d1['visitor_score'])
