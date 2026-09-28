@@ -1,0 +1,41 @@
+name: run bios
+
+# Player bios change rarely: monthly is plenty. Each run fetches new players plus
+# active ones (team / experience); retired players' bios are fetched once.
+# The first full pull (~5,400 pages at the 20 req/min limit) takes two runs —
+# trigger it by hand; the script resumes where the last run stopped.
+on:
+  schedule:
+    - cron: '0 14 1 * *' # 1st of the month, 7am PT
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bios:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - run: pip install pandas requests beautifulsoup4 lxml pyarrow
+
+      - name: Scrape bios
+        run: python scripts/bbref_bios.py --budget-minutes 320
+
+      # Runs even if the scrape step fails, so a partial backfill is kept.
+      - name: Commit if changed
+        if: always()
+        run: |
+          git config --global user.name "aaron"
+          git config --global user.email "aaroncolesmith@gmail.com"
+          git add data/nba_bios.parquet
+          if git diff --cached --quiet; then echo "no bio changes"; exit 0; fi
+          git commit -m "Update player bios"
+          git pull --rebase
+          git push
