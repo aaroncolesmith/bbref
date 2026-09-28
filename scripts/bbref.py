@@ -186,6 +186,12 @@ def get_box_score(game_id, visiting_team, home_team):
   df['game_id'] = url[-17:].replace('.html','')
 
   df.rename(columns={'Starters':'player'}, inplace=True)
+
+  ## bbref's player id (e.g. dickgr01) keeps players who share a name distinct
+  soup = BeautifulSoup(r.content, 'html.parser')
+  player_ids = {th.get_text(strip=True): th['data-append-csv']
+                for th in soup.select('th[data-stat="player"][data-append-csv]')}
+  df['player_id'] = df['player'].map(player_ids)
   df['date']=pd.to_datetime(df['game_id'].str[:8])
 
   df.columns = [x.lower() for x in df.columns]
