@@ -6,8 +6,9 @@ Incremental and time-boxed, because a full pull is ~5,000 player pages and
 Sports Reference allows 20 requests/minute:
 
 - The A–Z player index (26 pages) is always re-read: it is the list of ids.
-- A player page is fetched when the id is new or the player is active (current
-  team / experience change). Retired players' bios are fetched once. There is
+- A player page is fetched when the id is new or the player is recent (played in
+  the last three seasons, or has a current team): team / experience change, and
+  unsigned players can return. Older players' bios are fetched once. There is
   no scraped-at stamp, so the file only changes when a bio does — the monthly
   commit is skipped otherwise and git history stays small.
 - Stops after --budget-minutes and writes what it has; the next run resumes.
@@ -246,7 +247,10 @@ def write(bios: dict[str, dict], index: pd.DataFrame, out: Path) -> None:
               "recruiting_rank", "draft_year", "draft_round", "draft_pick", "draft_overall",
               "first_season", "last_season"):
         df[c] = pd.to_numeric(df[c], errors="coerce").astype("Int64")
-    df["is_active"] = df["is_active"].astype(bool)
+    # bbref shows "Experience" (not "Career Length") for anyone not formally retired,
+    # which includes players out of the league for years. Active here means rostered
+    # now or played in the latest season.
+    df["is_active"] = df["current_team"].notna() | (df["last_season"] == df["last_season"].max())
     out.parent.mkdir(parents=True, exist_ok=True)
     tmp = out.with_suffix(".tmp")
     df.to_parquet(tmp, index=False, compression="zstd")
@@ -271,9 +275,10 @@ def main() -> int:
     else:
         index = load_index()
         new = [pid for pid in index.player_id if pid not in bios]
-        active = [pid for pid, b in bios.items() if b.get("is_active")]
-        todo = new + active
-        print(f"todo: {len(new):,} new, {len(active):,} active to refresh ({len(bios):,} on file)", flush=True)
+        recent_ids = set(index.loc[index.last_season >= index.last_season.max() - 2, "player_id"])
+        recent = [pid for pid, b in bios.items() if pid in recent_ids or b.get("current_team")]
+        todo = new + recent
+        print(f"todo: {len(new):,} new, {len(recent):,} recent to refresh ({len(bios):,} on file)", flush=True)
 
     done = failed = 0
     for pid in todo:
