@@ -226,7 +226,9 @@ except Exception as e:
 
 
 
-df=get_season(2026)
+# bbref names a season by the year it ends; from October on, scrape the new one.
+today = date.today()
+df=get_season(today.year + 1 if today.month >= 10 else today.year)
 
 d1=pd.concat([d1,df]).reset_index(drop=True)
 d1['visitor_score'] = pd.to_numeric(d1['visitor_score'])
