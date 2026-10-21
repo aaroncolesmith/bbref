@@ -42,6 +42,13 @@ jobs:
           git config --global user.email "aaroncolesmith@gmail.com"
           git add .
           git diff-index --quiet HEAD || git commit -m "Update data"
+          # Keepalive: GitHub disables scheduled workflows after 60 days without
+          # a commit, which happens every off-season when the data doesn't change.
+          if [ $(( $(date +%s) - $(git log -1 --format=%ct) )) -gt $((30 * 86400)) ]; then
+            date -u +%Y-%m-%dT%H:%M:%SZ > .github/keepalive
+            git add .github/keepalive
+            git commit -m "Keepalive: prevent scheduled workflow auto-disable"
+          fi
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.BET_MODEL_GITHUB_TOKEN }}
