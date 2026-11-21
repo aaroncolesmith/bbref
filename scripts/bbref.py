@@ -204,11 +204,16 @@ def get_proxy():
   r=requests.get('https://www.us-proxy.org/')
   soup = BeautifulSoup(r.content, 'html.parser')
   table = soup.find_all('table')[0]
-  df = pd.read_html(str(table))[0]
-  i=random.randint(0,df.index.size-3)
-  proxy_string = "{'http': '"+ df.loc[i]['IP Address']+':'+df.loc[i]['Port'].astype('str')+"'}"
-  proxy = ast.literal_eval(proxy_string)
-  return proxy
+  df = pd.read_html(StringIO(str(table)))[0]
+  # us-proxy.org used separate 'IP Address' / 'Port' columns; since Nov 2026 it
+  # shows a single 'IP : Port' column. Handle either layout.
+  if 'IP Address' in df.columns and 'Port' in df.columns:
+    hosts = df['IP Address'].astype(str) + ':' + df['Port'].astype(str)
+  else:
+    ip_col = next(c for c in df.columns if 'ip' in str(c).lower())
+    hosts = df[ip_col].astype(str).str.replace(r'\s+', '', regex=True)
+  hosts = hosts[hosts.str.match(r'^\d{1,3}(\.\d{1,3}){3}:\d+$')].reset_index(drop=True)
+  return {'http': random.choice(hosts.tolist())}
 
 
 
